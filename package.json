@@ -1,0 +1,19 @@
+{
+  "name": "remi_airdrop",
+  "version": "0.0.1",
+  "description": "na",
+  "main": "Server.js",
+  "dependencies": {
+    "dotenv": "^6.2.0",
+    "ethereumjs-tx": "^1.3.7",
+    "mysql": "^2.16.0",
+    "web3": "^1.0.0-beta.41"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "test",
+    "start": "node server.js"
+  },
+  "author": "Remiit",
+  "license": "ISC"
+}
