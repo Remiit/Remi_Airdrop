@@ -1,0 +1,143 @@
+<title>Airdrop Transactor</title>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+let mostIndex = 0, totalGas = 0;
+let timer, pendingTime;
+
+function sendTx(){
+    const gasPrice = document.querySelector('#price').value;
+    const gasLimit = document.querySelector('#limit').value;
+    if(!document.querySelector('#valid').checked && 
+        (gasPrice > 3000000000 || gasPrice < 1000000000 || gasLimit > 4000000 || gasLimit < 2000000)
+    ){
+        document.querySelector('#validText').style['color'] = 'ff0000';
+        return false;
+    }else{document.querySelector('#validText').style['color'] = 'ffffff';}
+
+    const index = parseInt(document.querySelector('#index').value, 10) || 1;
+    document.querySelector('#index').value = (index>mostIndex?index:mostIndex) + 1;
+    updateStatus(3, mostIndex = Math.max(index, mostIndex));
+
+    updateStatus(1,"Request Server Data");
+    axios.get('/getList?index='+index).then(res => {
+        const data = {
+            tx: [index, gasPrice, gasLimit], 
+            args: [res.data.addrs, res.data.amt], 
+            force:document.querySelector('#force').checked
+        };
+        document.querySelector('#force').checked = false;
+
+        pendingTime = 0;
+        timer = setInterval(function(){
+            pendingTime++;
+            updateStatus(2,pendingTime+' s');
+            if(pendingTime > 10 * 60){
+                displayLog({index:mostIndex, nonce:"NA", state:2, hash:"TIMEOUT", gas:0}, "NA");
+            }
+        },1000);
+
+        updateStatus(1,"Wait Tx Receipt");
+        axios.post('/sendTx', data).then(res => {
+            displayLog(res.data,pendingTime);
+        }).catch(error=>{
+            displayLog({index:mostIndex, nonce:"NA", state:0, hash:"UNKNOWN ERROR, CHECK CONSOLE LOG", gas:0},"NA");
+            console.log(error);
+        });
+    });
+}
+
+function displayLog(res,time){
+    clearInterval(timer);
+
+    document.querySelector('#logLayer>div:first-child').insertAdjacentHTML('afterend', `
+    <div id="log_${res.nonce}" data-state="${res.state}">
+        <div># ${res.index}</div>
+        <div>${res.nonce}</div>
+        <div><a href="https://ropsten.etherscan.io/tx/${res.hash}" target="_blank">${res.hash}</a></div>
+        <div>${NumberInputCommas(res.gas)}</div>
+        <div>${time} s</div>
+        <div>${res.state==1?"Success":"Fail"}</div>
+    </div>`);
+    updateStatus(4,NumberInputCommas(totalGas += res.gas));
+
+    if(res.state==1){
+        updateStatus(1,"Transaction Done");
+        if(!document.querySelector('#auto').checked){sendTx();}
+    }else{
+        updateStatus(1,res.state==2?"<font color=yellow>Transaction Timeout</font>":"<font color=red>TRANSACTION FAILED</font>");
+        document.querySelector('#auto').checked = true;
+        document.querySelector('#index').value = mostIndex;
+    }
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    updateStatus(1,"Ready");
+});
+
+function toGas(){document.querySelector('#gas').value = Number(document.querySelector('#eth').value) * Math.pow(10,18) / Number(document.querySelector('#gp').value);}
+function toETH(){document.querySelector('#eth').value = Number(document.querySelector('#gas').value) * Number(document.querySelector('#gp').value) / Math.pow(10,18);}
+
+function updateStatus(index,value){document.querySelector('#statusLayer>div:nth-child('+index+')>div:nth-child(2)').innerHTML = value;}
+function NumberInputCommas(x){return !x?0:x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");}
+</script>
+
+<style>
+html{background-color:#000; color:#fff; font-size:9pt;}
+a{color:#fff;}
+input{margin:0 4px; padding-left:8px;}
+
+#buttonLayer{margin:30 12px; padding:0 20px; width:860px; height:32px; line-height:32px; border:1px solid #000;}
+
+#calculLayer{position:absolute; top:30px; left:1050px; width:860px; height:32px; line-height:32px;}
+
+#statusLayer{position:absolute; top:82px; left:1050px; width:300px;}
+#statusLayer>div{margin:12 0px; height:24px; line-height:24px; border:1px solid #999;}
+#statusLayer>div>div{display:inline-block;}
+#statusLayer>div>div:first-child{width:150px; text-align:center; border-right:1px dashed #666; background-color:#222;}
+#statusLayer>div>div:last-child{padding-left:12px; } 
+
+#logLayer>div{width:1000px; margin:6 12px; height:32px; line-height:32px; border:1px solid #fff; }
+#logLayer>div:first-child>div{margin-left:3px;}
+#logLayer>div:first-child>div:last-child{margin-left:1px;}
+#logLayer>div>div{text-align:center; display:inline-block;}
+#logLayer>div>div:first-child{width:84px;}
+#logLayer>div>div:nth-child(2){width:100px;}
+#logLayer>div>div:nth-child(3){width:500px;}
+#logLayer>div>div:nth-child(4){width:120px;}
+#logLayer>div>div:nth-child(5){width:80px;}
+#logLayer>div>div:last-child{width:100px;}
+#logLayer>div[data-state="0"]{background-color:#ff0000;}
+#logLayer>div[data-state="1"]{background-color:#339933;}
+#logLayer>div[data-state="2"]{background-color:#999933;}
+#logLayer>div[data-state="-1"]{background-color:#339999;}
+</style>
+
+<div id=buttonLayer>
+        Index <input id=index type=text size=5 value=0> 
+        GasLimit <input id=limit type=text size=9 value=4000000> 
+        GasPrice <input id=price type=text size=12 value=2000000000> 
+        <input type=button value=SendTx onClick=sendTx()> 
+        <input id=auto type=checkbox> Stop sending automatically
+        <input id=valid type=checkbox> <span id=validText>Is valid gas limit / value</span>
+        <input id=force type=checkbox> Forced tx sending
+</div>
+<div id=calculLayer>
+        GasPrice <input id=gp type=text size=4 value=1e9> 
+        Gas <input id=gas type=text size=12 value=5e6> 
+        <input type=button value=toGas onClick=toGas()> 
+        <input type=button value=toETH onClick=toETH()> 
+        ETH <input id=eth type=text size=9 value=0> 
+</div>
+<div id=statusLayer>
+    <div><div>Transactor Status</div><div></div></div>
+    <div><div>Elapsed Pending Time</div><div></div></div>
+    <div><div>Largest Sent Index</div><div></div></div>
+    <div><div>Instance Gas Used</div><div></div></div>
+</div>
+<div id=logLayer>
+    <div data-state=-1>
+        <div>Index</div><div>Nonce</div><div>Hash</div><div>Gas Used</div><div>Time Spent</div><div>Status</div>
+    </div>
+</div>
+</html>

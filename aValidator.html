@@ -1,0 +1,158 @@
+<title>Airdrop Validator</title>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+let now = 0, to = 0;
+let valid;
+let airdropData = [];
+
+function checkerInit(){
+    now = Number(document.querySelector('#from').value);
+    to = Number(document.querySelector('#to').value);
+
+    checkerCore();
+}
+
+function checkerCore(){
+    updateStatus(1,'Request Server Data');
+    axios.get('/getList?index='+now).then(res => {
+        const { addrs, amt } = res.data;
+        axios.get('/getLog?index='+now).then(res => {
+            updateStatus(1,'Analysis/Display Log');
+            let state = 0;
+            if(!res.data.logs[0]){
+                res.data.logs[0] = {nonce:"NA", txIndex:now, timestamp:0, hash:"NA", gas:0, price:0};
+                state = 3;
+            }
+            let type2 = res.data.logs.find(x=>{return x.type==2});
+            state = type2?2:state;
+            displayLog(type2?type2:res.data.logs[0],type2?2:state);
+
+            if(state==2){
+                updateStatus(1,'Validate Tx');
+                valid = true;
+                validateTx(0, addrs, amt).then(x=>{
+                    document.querySelector("#log_"+type2.nonce).setAttribute("data-state",valid?1:0);
+                    if(!valid){console.log(type2.txIndex);}
+                    checkerRepeater();
+                });
+            }else{checkerRepeater();}
+        });
+    });
+}
+
+function checkerRepeater(){
+    if(now < to){
+        document.querySelector("#from").value = ++now;
+        checkerCore();
+    }else{updateStatus(1,'Done');}
+}
+
+function validateTx(idx,addrs,amt){
+    const addr = addrs[idx];
+    return new Promise((resolve,rej)=>{
+        if(idx == addrs.length){return resolve(true);}
+        document.querySelector('#logLayer>div:nth-child(2)>div:last-child').insertAdjacentHTML('beforeend',`
+        <div><div>${addr}</div><div>Checking...</div><div>${amt}</div></div>
+        `);
+
+        axios.get('/getBalance?addr='+addr).then(res => {
+            const wallet = document.querySelector('#logLayer>div:nth-child(2)>div:last-child>div:last-child');
+            console.log(res.data.bal);
+            wallet.querySelector('div:nth-child(2)').innerHTML = res.data.bal;
+            wallet.setAttribute('data-check',res.data.bal==amt?1:0);
+            if(res.data.bal!=amt){valid = false;}
+
+            validateTx(idx+1,addrs,amt).then(res=>{
+                resolve(wallet.parentElement.parentElement.classList.add('fold'));
+            });
+        });
+    });
+}
+
+function displayLog(res,state){
+    document.querySelector('#logLayer>div:first-child').insertAdjacentHTML('afterend', `
+    <div id="log_${res.nonce}" data-state="${state}" class=${state==2?"":"fold"}>
+        <div onclick=this.parentElement.classList.toggle('fold')>
+            <div># ${res.txIndex}</div>
+            <div>${unixOutput(res.timestamp)}</div>
+            <div><a href="https://ropsten.etherscan.io/tx/${res.hash}" target="_blank">${res.hash}</a></div>
+            <div>${NumberInputCommas(res.gas)}</div>
+            <div>${res.price/Math.pow(10,3)} Gwei</div>
+            <div>${state==2?"Sent":state==1?"Vaildated":state==0?"Fail":"Unsent"}</div>
+        </div><div></div>
+    </div>`);
+}
+
+document.addEventListener("DOMContentLoaded", function(){
+    axios.get('/getList?index=FULL').then(res => {
+        airdropData = res.data.addrs;
+        updateStatus(1,"Ready");
+    });
+});
+
+function unixOutput(time){
+    const date = new Date(time * 1000);
+    return time==0?"NA":`${date.getMonth()+1}.${date.getDate()}__${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+}
+
+function updateStatus(index,value){document.querySelector('#statusLayer>div:nth-child('+index+')>div:nth-child(2)').innerHTML = value;}
+function NumberInputCommas(x){return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");}
+</script>
+
+<style>
+html{background-color:#000; color:#fff; font-size:9pt;}
+a{color:#fff;}
+input{margin:0 4px; padding-left:8px;}
+
+#buttonLayer{margin:30 12px; padding:0 20px; width:860px; height:32px; line-height:32px; border:1px solid #000;}
+
+#statusLayer{position:absolute; top:82px; left:1050px; width:300px;}
+#statusLayer>div{margin:12 0px; height:24px; line-height:24px; border:1px solid #999;}
+#statusLayer>div>div{display:inline-block;}
+#statusLayer>div>div:first-child{width:150px; text-align:center; border-right:1px dashed #666; background-color:#222;}
+#statusLayer>div>div:last-child{padding-left:12px; } 
+
+#logLayer>div{width:1000px; margin:6 12px; border:1px solid #fff;}
+#logLayer>div>div:first-child{height:32px; line-height:32px;}
+#logLayer>div:first-child>div:first-child>div{margin-left:3px;}
+#logLayer>div:first-child>div:first-child>div:last-child{margin-left:1px;}
+#logLayer>div>div:first-child>div{text-align:center; display:inline-block;}
+#logLayer>div>div:first-child>div:first-child{width:84px;}
+#logLayer>div>div:first-child>div:nth-child(2){width:100px;}
+#logLayer>div>div:first-child>div:nth-child(3){width:500px;}
+#logLayer>div>div:first-child>div:nth-child(4){width:120px;}
+#logLayer>div>div:first-child>div:nth-child(5){width:80px;}
+#logLayer>div>div:first-child>div:last-child{width:100px;}
+#logLayer>div[data-state="0"]>div{background-color:#ff0000;}
+#logLayer>div[data-state="1"]>div{background-color:#339933;}
+#logLayer>div[data-state="2"]>div{background-color:#999933;}
+#logLayer>div[data-state="3"]>div{background-color:#666;}
+#logLayer>div[data-state="-1"]>div{background-color:#339999;}
+
+#logLayer>div>div:nth-child(2){padding:20px;}
+#logLayer>div.fold>div:nth-child(2){display:none;}
+#logLayer>div>div:nth-child(2)>div[data-check="0"]{background-color:#ff0000;}
+#logLayer>div>div:nth-child(2)>div[data-check="1"]{background-color:#339933;}
+#logLayer>div>div:nth-child(2)>div>div{text-align:center; display:inline-block;}
+#logLayer>div>div:nth-child(2)>div>div:nth-child(1){width:400px;}
+#logLayer>div>div:nth-child(2)>div>div:nth-child(2){width:100px;}
+#logLayer>div>div:nth-child(2)>div>div:nth-child(3){width:100px;}
+</style>
+
+<div id=buttonLayer>
+        From (Index) <input id=from type=text size=5 value=1> 
+        To <input id=to type=text size=5 value=1> 
+        <input type=button value=Validate onClick=checkerInit()>
+</div>
+<div id=statusLayer>
+        <div><div>Checker Status</div><div></div></div>
+</div>
+<div id=logLayer>
+    <div data-state=-1>
+        <div>
+            <div>Index</div><div>Date</div><div>Hash</div><div>Gas Used</div><div>Gas Price</div><div>Status</div>
+        </div>
+    </div>
+</div>
+</html>
