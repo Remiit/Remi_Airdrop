@@ -14,7 +14,7 @@ const TableResort = {
 			connection.query(`
 				SELECT 
 					Mapping.seq as motherSeq, 
-					Wallet.walletAddress as address, 
+					LOWER(Wallet.walletAddress) as address, 
 					Code.eventCoin * 2.5 as amount, 
 					0 as isExternal
 				FROM BLUEPAN.EVENT_CODE_LIST as Code
@@ -30,7 +30,7 @@ const TableResort = {
 			connection.query(`
 				SELECT 
 					bountySeq as motherSeq, 
-					bountyWallet as address, 
+					LOWER(bountyWallet) as address, 
 					bountyCoin * 2.5 as amount, 
 					1 as isExternal
 				FROM BLUEPAN.BOUNTY_LIST 
