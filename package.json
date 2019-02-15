@@ -1,7 +1,7 @@
 {
   "name": "remi_airdrop",
-  "version": "0.0.1",
-  "description": "na",
+  "version": "1.0.0",
+  "description": "for airdrop REMI-ERC20 token",
   "main": "Server.js",
   "dependencies": {
     "dotenv": "^6.2.0",
@@ -12,7 +12,7 @@
   "devDependencies": {},
   "scripts": {
     "test": "test",
-    "start": "node server.js"
+    "start": "node _Server.js"
   },
   "author": "Remiit",
   "license": "ISC"
