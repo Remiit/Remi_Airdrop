@@ -1,0 +1,160 @@
+<title>Airdrop Validator</title>
+
+<script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script>
+const airdropValidate = {
+    now: 0, to: 0,
+    listData: [], logData: [],
+
+    checkerInit: () => {
+        now = Number(document.querySelector('#from').value);
+        to = Number(document.querySelector('#to').value);
+
+        airdropValidate.updateStatus(1,"Loading Data...");
+        airdropValidate.dataInitialize(now,to).then(() => {
+            airdropValidate.updateStatus(1,"Calculating Summation...");
+            sum = {};
+            listData.map((records, txIndex) => {
+                records.map(x => sum[x.address] = document.querySelector('#final').checked?x.target:((sum[x.address]||0) + x.amount));
+            });
+            airdropValidate.validateTx(now,listData.slice(now),sum).then(()=>{
+                airdropValidate.updateStatus(1,'Done');
+            })
+        });
+    },
+
+    validateTx: (index,data,sum) => {
+        airdropValidate.updateStatus(1,"Validate # "+index+"...");
+        return new Promise((resolve,rej)=>{
+            if(!data[0]){return resolve();}
+            let addrs = data[0].map((x)=>x.address);
+
+            axios.post('/getBalance',{addrs:addrs, validate:false}).then(res => {                
+                let valid = true;
+                let output = [];
+                addrs.map((addr, idx) => {
+                    if(sum[addr] != res.data[idx]){valid = false;}
+                    output.push(`<div data-check=${sum[addr]!=res.data[idx]?'0':'1'}><div>${addr}</div><div>${res.data[idx]}</div><div>${sum[addr]}</div></div>`)
+                })
+                state = !valid?0:document.querySelector('#final').checked?1:2;
+                
+                document.querySelector('#logLayer>div:first-child').insertAdjacentHTML('afterend',`
+                <div id="log_${logData[index].nonce}" data-state="${state}" class=fold>
+                    <div onclick=this.parentElement.classList.toggle('fold')>
+                        <div># ${logData[index].txIndex}</div>
+                        <div>${airdropValidate.utils.unixOutput(logData[index].timestamp)}</div>
+                        <div><a href="https://ropsten.etherscan.io/tx/${logData[index].hash}" target="_blank">${logData[index].hash}</a></div>
+                        <div>${airdropValidate.utils.NumberInputCommas(logData[index].gas)}</div>
+                        <div>${logData[index].price/Math.pow(10,3)} Gwei</div>
+                        <div>${state==0?"Wrong":state==1?"Success":"Ok"}</div>
+                    </div><div>${output.join('')}</div></div>
+                </div>
+                `);
+
+                if(valid>0 && document.querySelector('#update').checked){
+                    axios.post('/confirmTx',{txIndex:index}).then(res => {
+                        console.log("Confirmed Tx : "+index)
+                    })
+                }
+
+                airdropValidate.validateTx(index+1,data.slice(1),sum).then(()=>{return resolve();})
+            });
+
+        });
+    },
+
+    updateStatus: (index,value) => {
+        document.querySelector('#statusLayer>div:nth-child('+index+')>div:nth-child(2)').innerHTML = value;
+    },
+
+    dataInitialize: (from,to) => {
+        return new Promise((resolve,rej) => {
+            let queue = [];
+            queue[0] = axios.get(`/getList?from=1&to=${to}`).then(res => res.data);
+            queue[1] = axios.get(`/getLog?from=${from}&to=${to}`).then(res => res.data);
+            Promise.all(queue).then((res) => {
+                listData = res[0].reduce((list,x)=>{
+                    x.address = x.address.toLowerCase();
+                    list[x.txIndex] ? list[x.txIndex].push(x) : list[x.txIndex]=[x];
+                    return list;
+                },[]);
+                logData = res[1].reduce((list,x)=>{
+                    list[x.txIndex] = x;
+                    return list;
+                },[]);
+                resolve();
+            });
+        })
+    },
+
+    utils : {
+        unixOutput: (time) => {
+            const date = new Date(time * 1000);
+            return time==0?"NA":`${date.getMonth()+1}.${date.getDate()}__${date.getHours()}:${date.getMinutes()}:${date.getSeconds()}`;
+        },
+        NumberInputCommas: (x) => {
+            return x.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+        }
+    }
+};
+
+document.addEventListener("DOMContentLoaded", ()=>{airdropValidate.updateStatus(1,"Ready")});
+</script>
+
+<style>
+html{background-color:#000; color:#fff; font-size:9pt;}
+a{color:#fff;}
+input{margin:0 4px; padding-left:8px;}
+
+#buttonLayer{margin:30 12px; padding:0 20px; width:860px; height:32px; line-height:32px; border:1px solid #000;}
+
+#statusLayer{position:absolute; top:82px; left:1050px; width:300px;}
+#statusLayer>div{margin:12 0px; height:24px; line-height:24px; border:1px solid #999;}
+#statusLayer>div>div{display:inline-block;}
+#statusLayer>div>div:first-child{width:150px; text-align:center; border-right:1px dashed #666; background-color:#222;}
+#statusLayer>div>div:last-child{padding-left:12px; } 
+
+#logLayer>div{width:1000px; margin:6 12px; border:1px solid #fff;}
+#logLayer>div>div:first-child{height:32px; line-height:32px;}
+#logLayer>div:first-child>div:first-child>div{margin-left:3px;}
+#logLayer>div:first-child>div:first-child>div:last-child{margin-left:1px;}
+#logLayer>div>div:first-child>div{text-align:center; display:inline-block;}
+#logLayer>div>div:first-child>div:first-child{width:84px;}
+#logLayer>div>div:first-child>div:nth-child(2){width:100px;}
+#logLayer>div>div:first-child>div:nth-child(3){width:500px;}
+#logLayer>div>div:first-child>div:nth-child(4){width:120px;}
+#logLayer>div>div:first-child>div:nth-child(5){width:80px;}
+#logLayer>div>div:first-child>div:last-child{width:100px;}
+#logLayer>div[data-state="0"]>div{background-color:#ff0000;}
+#logLayer>div[data-state="1"]>div{background-color:#339933;}
+#logLayer>div[data-state="2"]>div{background-color:#999933;}
+#logLayer>div[data-state="-1"]>div{background-color:#339999;}
+
+#logLayer>div>div:nth-child(2){padding:20px;}
+#logLayer>div.fold>div:nth-child(2){display:none;}
+#logLayer>div>div:nth-child(2)>div[data-check="0"]{background-color:#ff0000;}
+#logLayer>div>div:nth-child(2)>div[data-check="1"]{background-color:#339933;}
+#logLayer>div>div:nth-child(2)>div>div{text-align:center; display:inline-block;}
+#logLayer>div>div:nth-child(2)>div>div:nth-child(1){width:400px;}
+#logLayer>div>div:nth-child(2)>div>div:nth-child(2){width:100px;}
+#logLayer>div>div:nth-child(2)>div>div:nth-child(3){width:100px;}
+</style>
+
+<div id=buttonLayer>
+        Validate from index <input id=from type=text size=5 value=1> 
+        to <input id=to type=text size=5 value=1> 
+        <input type=button value=Validate onClick=airdropValidate.checkerInit()>
+        <input id=final type=checkbox> Final check
+        <input id=update type=checkbox> Update db status
+</div>
+<div id=statusLayer>
+        <div><div>Checker Status</div><div></div></div>
+</div>
+<div id=logLayer>
+    <div data-state=-1>
+        <div>
+            <div>Index</div><div>Date</div><div>Hash</div><div>Gas Used</div><div>Gas Price</div><div>Status</div>
+        </div>
+    </div>
+</div>
+</html>
