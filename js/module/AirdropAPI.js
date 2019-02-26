@@ -1,3 +1,4 @@
+const mysql = require('mysql');
 const AirdropAPI = {
 	promise:(func) => {
 		return new Promise((resolve, reject) => {
@@ -16,7 +17,8 @@ const AirdropAPI = {
 		}
 	},
 	chainError:(err) => {throw err;},
-	sendTx:({connection, tx, args, RemiAirdrop, RemiToken}) => {
+	sendTx:({dbConfig, tx, args, RemiAirdrop, RemiToken}) => {
+		let connection = mysql.createConnection(dbConfig);
 		connection.connect();
 		let lastData, ownerBalance, txData = {};
 		return new Promise((resolve, reject) => {
@@ -25,8 +27,13 @@ const AirdropAPI = {
 				if(result.length>0){throw result.nonce;}
 				return AirdropAPI.promise(connection.query(`insert into TEMPORAL_LOGS values ("0", 1, ${tx[0]}, 0, "", 0, "", "", "${tx[2]}", "${tx[1]/Math.pow(10,6)}", ${Math.floor(Date.now()/1000)});`));
 			})
-			.then(()=>{return RemiAirdrop.airdropToken(tx,args)}, AirdropAPI.chainError)
+			.then(()=>{
+				connection.end();
+				return RemiAirdrop.airdropToken(tx,args)
+			}, AirdropAPI.chainError)
 			.then((data) => {
+				connection = mysql.createConnection(dbConfig);
+				connection.connect();
 				txData = data;
 				const insertQuery = connection.query(`insert into TEMPORAL_LOGS values ("",2,${txData.index},${txData.nonce},"${txData.receipt.transactionHash}",${txData.receipt.blockNumber},"${txData.receipt.from}","${txData.receipt.to}",${txData.receipt.gasUsed},"${tx[1]/1000000}",${Math.floor(Date.now()/1000)});`);
 				return AirdropAPI.promise(insertQuery);

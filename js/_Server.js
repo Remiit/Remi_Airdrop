@@ -76,14 +76,13 @@ let server = http.createServer((req, res) => {
 			return req.on('end', () => {
 				const { tx, args } = JSON.parse(body);
 
-				const connection = mysql.createConnection(dbConfig);
-				AirdropAPI.sendTx({connection, tx, args, RemiAirdrop, RemiToken})
+				AirdropAPI.sendTx({dbConfig, tx, args, RemiAirdrop, RemiToken})
 				.then((result) => {res.end(JSON.stringify(result));});
 			})
 		}else if(uriList[1] === 'getBalance'){
 			return req.on('end', () => {
 				const { addrs, validate } = JSON.parse(body);
-
+				
 				queue = addrs.map(addr => RemiToken.balanceOf([addr]));
 				Promise.all(queue).then(result => {
 					res.end(JSON.stringify(result.map(x => String(BigInt(x)/BigInt(Math.pow(10,18))))))
@@ -102,4 +101,4 @@ let server = http.createServer((req, res) => {
 }).listen(8081, () => {
 	console.log('8081번 포트 실행');
 })
-server.timeout = 10 * 60 * 1000;
+server.timeout = 1000 * 60 * 1000;
