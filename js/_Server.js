@@ -75,6 +75,7 @@ let server = http.createServer((req, res) => {
 		if(uriList[1] === 'sendTx'){
 			return req.on('end', () => {
 				const { tx, args } = JSON.parse(body);
+				console.log("> Send txIndex",tx[0])
 
 				AirdropAPI.sendTx({dbConfig, tx, args, RemiAirdrop, RemiToken})
 				.then((result) => {res.end(JSON.stringify(result));});

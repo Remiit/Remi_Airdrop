@@ -30,6 +30,7 @@ const RemiAirdrop = {
 					receipt = (JSON.parse(String(receipt).split('\n').slice(1).join('')));
 					resolve({index:tx[0], nonce:Number(obj.nonce), receipt:receipt});
 				})
+				.on('transactionHash', hash=>{console.log("Hash : ", hash)})
 				.then(receipt => {
 					resolve({index:tx[0], nonce:Number(obj.nonce), receipt:receipt});
 				});
