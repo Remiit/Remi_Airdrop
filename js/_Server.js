@@ -26,6 +26,9 @@ let server = http.createServer((req, res) => {
 				if(err) throw err;
 				res.end(data);
 			});
+		}else if(req.url === '/favicon.ico'){
+			res.writeHead(204, 'NOT CONTENT');
+			return res.end('NOT CONTENT');
         }else if(uriList[1] === 'getList'){
 			found = true;
 			const { index, from, to } = url.parse(req.url, true).query;
@@ -72,17 +75,19 @@ let server = http.createServer((req, res) => {
 		if(uriList[1] === 'sendTx'){
 			return req.on('end', () => {
 				const { tx, args } = JSON.parse(body);
+				console.log("> Send txIndex",tx[0])
 
-				const connection = mysql.createConnection(dbConfig);
-				AirdropAPI.sendTx({connection, tx, args, RemiAirdrop, RemiToken})
+				AirdropAPI.sendTx({dbConfig, tx, args, RemiAirdrop, RemiToken})
 				.then((result) => {res.end(JSON.stringify(result));});
 			})
 		}else if(uriList[1] === 'getBalance'){
 			return req.on('end', () => {
 				const { addrs, validate } = JSON.parse(body);
-
+				
 				queue = addrs.map(addr => RemiToken.balanceOf([addr]));
-				Promise.all(queue).then(result => res.end(JSON.stringify(result)));
+				Promise.all(queue).then(result => {
+					res.end(JSON.stringify(result.map(x => String(BigInt(x)/BigInt(Math.pow(10,18))))))
+				});
 			});
 		}else if(uriList[1] === 'confirmTx'){
 			return req.on('end', () => {
@@ -97,4 +102,4 @@ let server = http.createServer((req, res) => {
 }).listen(8081, () => {
 	console.log('8081번 포트 실행');
 })
-server.timeout = 10 * 60 * 1000;
+server.timeout = 1000 * 60 * 1000;
