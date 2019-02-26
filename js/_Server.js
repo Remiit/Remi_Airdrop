@@ -26,6 +26,9 @@ let server = http.createServer((req, res) => {
 				if(err) throw err;
 				res.end(data);
 			});
+		}else if(req.url === '/favicon.ico'){
+			res.writeHead(204, 'NOT CONTENT');
+			return res.end('NOT CONTENT');
         }else if(uriList[1] === 'getList'){
 			found = true;
 			const { index, from, to } = url.parse(req.url, true).query;
@@ -82,7 +85,9 @@ let server = http.createServer((req, res) => {
 				const { addrs, validate } = JSON.parse(body);
 
 				queue = addrs.map(addr => RemiToken.balanceOf([addr]));
-				Promise.all(queue).then(result => res.end(JSON.stringify(result)));
+				Promise.all(queue).then(result => {
+					res.end(JSON.stringify(result.map(x => String(BigInt(x)/BigInt(Math.pow(10,18))))))
+				});
 			});
 		}else if(uriList[1] === 'confirmTx'){
 			return req.on('end', () => {

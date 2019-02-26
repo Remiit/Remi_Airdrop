@@ -7,6 +7,14 @@ const AirdropAPI = {
 			func.on('end', () => resolve(rows));
 		});
 	},
+	tokenFormat : (dir,val) => {
+		switch(dir){
+			case 'StringToNumber':
+				return BigInt(val.substr(0,val.length-18)) * BigInt(Math.pow(10,18)) + BigInt(val.substr(-18));
+			case 'NumberToString':
+				return String(val).substr(0,String(val).length-18)+'.'+String(val).substr(-18);
+		}
+	},
 	chainError:(err) => {throw err;},
 	sendTx:({connection, tx, args, RemiAirdrop, RemiToken}) => {
 		connection.connect();
@@ -30,10 +38,24 @@ const AirdropAPI = {
 			}, AirdropAPI.chainError)
 			.then(addr => RemiToken.balanceOf([addr]), AirdropAPI.chainError)
 			.then((bal) => {ownerBalance = bal}, AirdropAPI.chainError)
-			.then(result => RemiToken.totalSupply(), AirdropAPI.chainError)
+			.then(result => {return RemiToken.totalSupply()}, AirdropAPI.chainError)
 			.then(supply => {
+				lastData['tokenOwn'] = lastData['tokenOwn'].substr(0,lastData['tokenOwn'].length-19)+''+lastData['tokenOwn'].substr(-18)
+
+				_marketOwn = AirdropAPI.tokenFormat('StringToNumber',supply) - AirdropAPI.tokenFormat('StringToNumber',ownerBalance);
+				_changeAmount = AirdropAPI.tokenFormat('StringToNumber',ownerBalance) - AirdropAPI.tokenFormat('StringToNumber',lastData['tokenOwn']);
+
 				return connection.query(`insert into TOKEN_MONITORING_DETAIL values(
-					0,${supply},${ownerBalance},${supply - ownerBalance},"Airdrop",${ownerBalance - Number(lastData['tokenOwn'])},"${txData.receipt.transactionHash}",${txData.receipt.blockNumber},"${txData.receipt.from}","${txData.receipt.to}","${txData.receipt.gasUsed * tx[1]/Math.pow(10,6)}",${Math.floor(Date.now()/1000)}
+					0,
+					${AirdropAPI.tokenFormat('NumberToString',supply)},
+					${AirdropAPI.tokenFormat('NumberToString',ownerBalance)},
+					${AirdropAPI.tokenFormat('NumberToString',_marketOwn)},
+					"Airdrop",
+					${AirdropAPI.tokenFormat('NumberToString',_changeAmount)},
+					"${txData.receipt.transactionHash}",${txData.receipt.blockNumber},
+					"${txData.receipt.from}","${txData.receipt.to}",
+					"${txData.receipt.gasUsed * tx[1]/Math.pow(10,6)}",
+					${Math.floor(Date.now()/1000)}
 				);`, (error, qResult, fields) => {
 					connection.end();
 					resolve({index:txData.index, nonce:txData.nonce, hash:txData.receipt.transactionHash, gas:Number(txData.receipt.gasUsed), state:Number(txData.receipt.status)});

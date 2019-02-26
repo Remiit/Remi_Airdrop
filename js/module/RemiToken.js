@@ -13,7 +13,7 @@ const RemiToken = {
 	balanceOf: (args) => {
 		return new Promise((resolve, reject) => {
             RemiToken.contractInitialize().methods.balanceOf(...args).call()
-            .then(res=>{resolve(parseFloat((res/Math.pow(10,18)).toPrecision(12)));});
+            .then(res=>{resolve(res);});
         });
     },
 	owner: (args) => {
@@ -25,7 +25,7 @@ const RemiToken = {
 	totalSupply: (args) => {
 		return new Promise((resolve, reject) => {
             RemiToken.contractInitialize().methods.totalSupply().call()
-            .then(res=>{resolve(parseFloat((res/Math.pow(10,18)).toPrecision(12)));});
+            .then(res=>{resolve(res);});
         });
     }
 }
