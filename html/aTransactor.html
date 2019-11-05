@@ -3,6 +3,7 @@
 <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
 <script>
 let mostIndex = 0, totalGas = 0;
+let gasCounter = 0;
 let timer, pendingTime;
 
 function sendTx(){
@@ -115,16 +116,16 @@ input{margin:0 4px; padding-left:8px;}
 
 <div id=buttonLayer>
         Index <input id=index type=text size=5 value=0> 
-        GasLimit <input id=limit type=text size=9 value=4000000> 
-        GasPrice <input id=price type=text size=12 value=2000000000> 
+        GasLimit <input id=limit type=text size=9 value=2200000> 
+        GasPrice <input id=price type=text size=12 value=5000000000> 
         <input type=button value=SendTx onClick=sendTx()> 
         <input id=auto type=checkbox> Stop sending automatically
         <input id=valid type=checkbox> <span id=validText>Is valid gas limit / value</span>
         <input id=force type=checkbox> Forced tx sending
 </div>
 <div id=calculLayer>
-        GasPrice <input id=gp type=text size=4 value=1e9> 
-        Gas <input id=gas type=text size=12 value=5e6> 
+        GasPrice <input id=gp type=text size=4 value=5e9> 
+        Gas <input id=gas type=text size=12 value=3e9> 
         <input type=button value=toGas onClick=toGas()> 
         <input type=button value=toETH onClick=toETH()> 
         ETH <input id=eth type=text size=9 value=0> 

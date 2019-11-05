@@ -51,7 +51,8 @@ const airdropValidate = {
                 </div>
                 `);
 
-                if(valid>0 && document.querySelector('#update').checked){
+                //if(valid>0 && document.querySelector('#update').checked){
+                if(document.querySelector('#update').checked){
                     axios.post('/confirmTx',{txIndex:index}).then(res => {
                         console.log("Confirmed Tx : "+index)
                     })
